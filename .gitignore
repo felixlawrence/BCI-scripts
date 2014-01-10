@@ -1,0 +1,2 @@
+tests/fixtures/census_data.pickle
+*.pyc
