@@ -22,8 +22,8 @@ def test_calc_dt_days():
     data_subset = census_data.ix[census_data['sp'] == 'gar2in']
     calc_dt_days(data_subset)
     assert_in('dt_days', data_subset.columns)
-    assert_equal(19704,     len(data_subset.dt_days.dropna()))
-    assert_equal(1606,      data_subset.dt_days[2,212,1])
+    assert_equal(25374,     len(data_subset.dt_days.dropna()))
+    assert_equal(1477,      data_subset.dt_days[1,212,1])
 
 
 def test_load_full():

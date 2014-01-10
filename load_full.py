@@ -81,6 +81,6 @@ def calc_dt_days(census_data):
     dt_days = dt/np.timedelta64(1, 'D')
 
     # store t_{i+1} - t_i with data point i
-    dt_days = dt_days[1:]
-    dt_days.index = dt.index[:-1]
+    dt_days = dt_days.iloc[:,1:]
+    dt_days.columns = dt.columns[:-1]
     census_data['dt_days'] = dt_days.stack().reorder_levels(['CensusID','treeID','stemID'])
