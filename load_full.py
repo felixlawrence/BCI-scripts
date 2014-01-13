@@ -5,6 +5,18 @@ data_path = "/home/felix/Data/data_BCI/rawdata/"
 file_idxs = [i+1 for i in xrange(7)]
 
 
+def refresh_data_pickle():
+    print "loading censuses"
+    census_data = load_all_censuses()
+    print "calc_dt_days"
+    calc_dt_days(census_data)
+    print "calc_growth"
+    calc_growth(census_data)
+    print "saving pickle..."
+    census_data.to_pickle("/home/felix/Data/data_BCI/census_data.pickle")
+    return census_data
+
+
 def load_one_census(i):
     file_name = "bci.full%d.csv" % i
     file_path = data_path + "50ha/" + file_name
@@ -75,6 +87,7 @@ def calc_species_abundance(census_data = None):
 
 def calc_dt_days(census_data):
     dates = census_data.pddate.unstack(level='CensusID')
+
     # Bug in pandas: https://github.com/pydata/pandas/issues/4533
     dt = dates.apply(pd.Series.diff, axis=1)
     # Annoyance in numpy: http://stackoverflow.com/questions/18215317/extracting-days-from-a-numpy-timedelta64-value
@@ -83,4 +96,38 @@ def calc_dt_days(census_data):
     # store t_{i+1} - t_i with data point i
     dt_days = dt_days.iloc[:,1:]
     dt_days.columns = dt.columns[:-1]
-    census_data['dt_days'] = dt_days.stack().reorder_levels(['CensusID','treeID','stemID'])
+
+    census_data['dt_days'] = stack_w_censusid(dt_days)
+
+
+def calc_growth(census_data):
+    """ Calculate future dbh growth rate [mm/day]"""
+    dbhs = census_data.dbh.unstack(level='CensusID')
+
+    ddbhs = dbhs.T.diff().T         # differentiate along censusID
+    ddbhs = ddbhs.iloc[:,1:]
+    ddbhs.columns = dbhs.columns[:-1]
+
+    census_data['growth'] = stack_w_censusid(ddbhs) / census_data.dt_days
+
+
+def calc_death(census_data):
+    is_alive = (census_data.status == 'A').unstack(level='CensusID')
+
+    # Is it alive now and in the following census?
+    survives = is_alive.iloc[:,:-1] & is_alive.iloc[:,1:].values
+
+    dies     = is_alive.iloc[:,:-1] & np.logical_not(is_alive.iloc[:,1:].values)
+
+    census_data['survives'] = stack_w_censusid(survives)
+    census_data['dies']     = stack_w_censusid(dies)
+
+
+def stack_w_censusid(df):
+    s = df.stack()
+        # Pandas sometimes forgets the name here (haven't got a unit test for this)
+    if not 'CensusID' in s.index.names:
+        print "forgot name of CensusID", s.index.names
+        s.index.names[-1] = 'CensusID'
+
+    return s.reorder_levels(['CensusID','treeID','stemID'])
