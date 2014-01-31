@@ -12,6 +12,8 @@ def refresh_data_pickle():
     calc_dt_days(census_data)
     print "calc_growth"
     calc_growth(census_data)
+    print "calc death"
+    calc_death(census_data)
     print "saving pickle..."
     census_data.to_pickle("/home/felix/Data/data_BCI/census_data.pickle")
     return census_data
@@ -101,14 +103,38 @@ def calc_dt_days(census_data):
 
 
 def calc_growth(census_data):
-    """ Calculate future dbh growth rate [mm/day]"""
-    dbhs = census_data.dbh.unstack(level='CensusID')
+    """ Calculate future (forward?) dbh growth rate [mm/day]"""
+    dbhs = census_data.dbh.unstack(level='CensusID').T
 
-    ddbhs = dbhs.T.diff().T         # differentiate along censusID
-    ddbhs = ddbhs.iloc[:,1:]
-    ddbhs.columns = dbhs.columns[:-1]
+    ddbhs = dbhs.diff()           # differentiate along censusID
+    ddbhs = ddbhs.iloc[1:]
+    ddbhs.index = dbhs.index[:-1]
 
-    census_data['growth'] = stack_w_censusid(ddbhs) / census_data.dt_days
+    dts = census_data.dt_days.unstack(level='CensusID').T
+
+    growth = ddbhs / dts
+    # TODO: interpolate growth to get central differences
+    growth_s = stack_w_censusid(growth.T)
+    census_data['growth'] = growth_s
+
+
+    # Calculate second derivative
+
+    # dt between growth samples is
+    # (t2 + t1)/2 - (t1 + t0)/2 = ((t1-t0) + (t2-t1))/2
+    dt_growth = pd.rolling_mean(dts, window=2, min_periods=2)
+
+    dgrowth = growth.diff()
+    growth_accel = dgrowth / dt_growth
+
+    # Dodgy: we want backward-backward differences not forward-backward
+    # or central differences - because we need the acceleration at the last
+    # recorded point before death. Sigh.
+    growth_accel = growth_accel.iloc[:-1]
+    growth_accel.index = dgrowth.index[1:]
+
+    # TODO: interpolate growth_accel to get central differences?
+    census_data['growth_accel'] = stack_w_censusid(growth_accel.T)
 
 
 def calc_death(census_data):
