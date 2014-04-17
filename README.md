@@ -3,5 +3,8 @@ This is a set of scripts to wrangle the BCI data and do some simple operations o
 
 Sorry folks, the BCI data is not included here. Get yer own copy!
 
-# Testing
+## Testing
 Simply run `nosetests` from this directory.
+
+## License
+All rights reserved, for now. Please contact me if you actually want to use this code.
